@@ -1,6 +1,7 @@
 import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import fs from "node:fs";
+import express from "express";
 
 const months = [
   "января",
@@ -17,7 +18,21 @@ const months = [
   "декабря",
 ];
 
-async function main() {
+const app = express();
+
+app.get("/", async (req, res) => {
+  try {
+    const rss = await makeRSS();
+    res.setHeader('content-type', 'text/xml');
+    res.send(rss);
+  } catch (err) {
+    res.status(500).send();
+  }
+});
+
+app.listen(3000, '0.0.0.0');
+
+async function makeRSS() {
   if (!fs.existsSync("cache")) {
     fs.mkdirSync("cache");
   }
@@ -80,24 +95,27 @@ async function main() {
     rss.items.push(episodeJson);
   }
   rss.pubDate = rss.items[0].pubDate;
-  console.log(`<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" version="2.0">
+
+  return `<rss xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/" version="2.0">
   <channel>
     <title><![CDATA[ ${rss.title} ]]></title>
     <link>${rss.link}</link>
     <language>${rss.language}</language>
     <pubDate>${rss.pubDate}</pubDate>
     <description><![CDATA[ ${rss.description} ]]></description>
-${rss.items.map(item => `    <item>
+${rss.items
+  .map(
+    (item) => `    <item>
       <link>${item.link}</link>
       <guid>${item.guid}</guid>
       <pubDate>${item.pubDate}</pubDate>
       <description><![CDATA[ ${item.description} ]]></description>
       <title><![CDATA[ ${item.title} ]]></title>
       <author>${item.author}</author>
-    </item>`).join('\n')}
+    </item>`
+  )
+  .join("\n")}
   </channel>
 </rss>
-`);
+`;
 }
-
-main();
