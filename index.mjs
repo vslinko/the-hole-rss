@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import * as cheerio from "cheerio";
 import fs from "node:fs";
 import express from "express";
+import { resolve } from "node:path";
 
 const months = [
   "января",
@@ -23,14 +24,14 @@ const app = express();
 app.get("/", async (req, res) => {
   try {
     const rss = await makeRSS();
-    res.setHeader('content-type', 'text/xml');
+    res.setHeader("content-type", "text/xml");
     res.send(rss);
   } catch (err) {
     res.status(500).send();
   }
 });
 
-app.listen(3000, '0.0.0.0');
+app.listen(3000, "0.0.0.0");
 
 async function makeRSS() {
   if (!fs.existsSync("cache")) {
@@ -49,9 +50,12 @@ async function makeRSS() {
   const $recent = cheerio.load(
     await (await fetch("https://the-hole.tv/episodes/recent")).text()
   );
+  const recentElements = Array.from($recent("#episodes_recent .episode_small"))
+    .reverse()
+    .map((i) => $recent(i));
 
-  for (const x of $recent("#episodes_recent .episode_small")) {
-    const $a = $recent(x).find("a");
+  for (const $recentElement of recentElements) {
+    const $a = $recentElement.find("a");
     const episodeUrl = `https://the-hole.tv${$a.attr("href")}`;
 
     let episodeJson;
@@ -91,8 +95,9 @@ async function makeRSS() {
         author: showTitle,
       };
       fs.writeFileSync(episodeJsonCacheFile, JSON.stringify(episodeJson));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    rss.items.push(episodeJson);
+    rss.items.unshift(episodeJson);
   }
   rss.pubDate = rss.items[0].pubDate;
 
