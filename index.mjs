@@ -21,13 +21,23 @@ const months = [
 
 const app = express();
 
+const SECRET_KEY = process.env.SECRET_KEY || "";
+
 app.get("/", async (req, res) => {
   try {
+    const secretKey = req.query.key || "";
+    if (secretKey !== SECRET_KEY) {
+      res.status(400);
+      res.send("Invalid secret key");
+      return;
+    }
+
     const rss = await makeRSS();
     res.setHeader("content-type", "text/xml");
     res.send(rss);
   } catch (err) {
-    res.status(500).send();
+    res.status(500);
+    res.send(String(err));
   }
 });
 
